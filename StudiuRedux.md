@@ -151,9 +151,12 @@ const Dashboard = () => {
         const end = products.slice(index+1);
         setProducts([...start,p,...end]);
     }
+    
+    
 
     const handleSave = () => {
-        axios.put('http://localhost:8080/product',{...selectedProduct},{withCredentials:true})
+        const index = products.findIndex((prod) => prod.id === selectedProduct.id);
+        axios.put('http://localhost:8080/product',{...products[index]},{withCredentials:true})
         .then(response => response.data)
         .then((response) => {})
         .catch((error) => {
@@ -289,42 +292,7 @@ import React,{useEffect, useState,useRef} from 'react';
 import {Redirect} from 'react-router-dom';
 import Endpoints from './endpoints';
 
-const TableEditableRow = ({values,onSelect,onSave,onChange,onCancel,onDelete,selected}) => {
-
-    const unusedKeys = ['id','createdAt','updatedAt'];
-
-    const renderCellValue = (key, values) => {
-        if(selected)
-            return <input name={key} onChange={onChange} value={values[key]}/>
-        return values[key];
-    }
-
-    return <React.Fragment>
-            <tr>
-                {Object.keys(values)
-                .filter(key => unusedKeys.indexOf(key)<0)
-                .map((key,index) => (
-                    <td key={index} onClick={onSelect}> 
-                        {renderCellValue(key,values)}
-                    </td>
-                ))}
-                
-                {selected && (
-                    <React.Fragment>
-                        <td>
-                            <button onClick={onSave}>SAVE</button>
-                        </td>
-                        <td>
-                            <button onClick={onCancel}>CANCEL</button>
-                        </td>
-                        <td>
-                            <button onClick={onDelete}>DELETE</button>
-                        </td>
-                    </React.Fragment>
-                )}
-            </tr>
-        </React.Fragment>
-}
+//...TableEditableRow definition
 
 const Dashboard = () => {
     
@@ -429,8 +397,9 @@ const Dashboard = () => {
     }
 
     const handleSave = async () => {
+        const index = products.findIndex((prod) => prod.id === selectedProduct.id);
         try {
-            await Endpoints.product.put(selectedProduct);
+            await Endpoints.product.put(products[index]);
         }
         catch (error) {
             console.error(error);
@@ -458,60 +427,195 @@ const Dashboard = () => {
         }
     }
 
-    if (loading) {
-        return <React.Fragment>Loading...</React.Fragment>
-    }
-
-    if (redirect) {
-        return <Redirect to='/login'/>
-    }
-
-    return (<React.Fragment>
-        Dashboard
-        <button onClick={handleDisconnect}>Disconnect</button>
-        <form
-        ref={postForm}
-        onChange={handleFormChange}
-        onSubmit={handleFormSubmit}>
-        <table>
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Price</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>
-                        <input name="name" type="text" placeholder="Product name"/>
-                    </td>
-                    <td>
-                        <input name="price" type="number" placeholder="Price"/>
-                    </td>
-                    <td>
-                        <button onClick={handleAddProduct}>Add Product</button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>    
-        </form>
-
-        <table>
-            <tbody>
-                {products.map((product) => <TableEditableRow
-                                        onSelect={()=>{handleSelect(product)}}
-                                        onSave={handleSave}
-                                        onCancel={handleCancel}
-                                        onChange={handleModification}
-                                        onDelete={handleDelete}
-                                        selected={product.id === selectedProduct.id}
-                                        values={product}
-                                        key={product.id} />)}
-            </tbody>
-        </table>
-    </React.Fragment>);
+   //...login, redirect, return
 }
 
 export default Dashboard;
 ```
+
+O alta observatie pe care o putem face este aceea ca repetam scrierea insertilor imutabile. In acest studiu
+optam pentru adaugarea a doua functii noi la prototipul obiectului Array. Pentru ca aceste functii sa fie disponibile pe
+tot parcursul proiectului alegem sa adaugam declararea acestora in App.jsx.
+
+#### src/App.jsx
+
+```javascript
+import React from 'react';
+import {Provider} from 'react-redux';
+import {BrowserRouter as Router, Switch,Route} from 'react-router-dom';
+
+import Login from './Login';
+import Dashboard from './Dashboard';
+import store from './redux';
+
+Array.prototype.immutableRemove = function(index) {
+  const start = this.slice(0, index);
+  const end = this.slice(index + 1);
+  return [...start, ...end];
+}
+
+
+Array.prototype.immutableInsertAt = function(index, value) {
+  const start = this.slice(0,index);
+  const end = this.slice(index+1);
+  return [...start,{...value},...end];
+}
+
+const App = ()=>{
+  
+  return (
+      <Router>    
+        <Switch>
+          <Route path='/login' component={Login}/>
+          <Route path='/dashboard' component={Dashboard}/>
+        </Switch>
+      </Router>
+  );
+}
+
+export default App;
+
+```
+
+Asadar putem folosi acum functiile immutableInsertAt si immutableRemove pe orice array si ne va returna 
+o variabila noua, dar ce va avea o structura diferita. Aceste operatii imutabile se asigura ca apelarea
+functiilor setState rerandeaza elementele in cauza. Dupa aceasta modificare Dasboard jsx arata astfel
+
+#### /src/Dashboard.jsx
+
+```javascript
+import React,{useEffect, useState,useRef} from 'react';
+import {Redirect} from 'react-router-dom';
+import Endpoints from './endpoints';
+
+//...TableEditableRow definition
+
+const Dashboard = () => {
+    
+    const [redirect,setRedirect] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [products, setProducts] = useState([]);
+    const [formData, setFormData] = useState({});
+    const [selectedProduct,setSelectedProduct] = useState({});
+    const postForm = useRef();
+
+    useEffect(() => {
+        const authenticate = async () => {
+            try {
+                const {data} = await Endpoints.login.authenticate();
+                setRedirect(data.message !== "ok");
+                setLoading(false);
+            }
+            catch(error) {
+                setRedirect(true);
+                setLoading(false);
+            }
+        }
+    
+        const getProducts = async () => {
+            try {
+                const {data} = await Endpoints.product.get();
+                setProducts(data);
+            }
+            catch(error) {
+                console.log(error);
+            }
+        }
+
+        authenticate();
+        getProducts();
+    },[]);
+
+    const handleDisconnect = async () => {
+        try {
+            await Endpoints.login.disconnect();
+            setRedirect(true);
+        }
+        catch (error) {
+            console.log(error);
+            setRedirect(true);
+        }
+    }
+
+    const handleFormChange = (event) => {
+        setFormData({
+            ...formData,
+            [event.target.name]: event.target.value
+            });
+    }
+
+    const handleDelete = async () => {
+        const {id} = selectedProduct;
+        const index = products.findIndex((prod) => prod.id === id);
+        setProducts(products.immutableRemove(index));
+        setSelectedProduct({});
+        try {
+            await Endpoints.product.delete(id);
+        }
+        catch (error) {
+            console.error(error);
+        }
+        
+    }
+
+    const handleSelect = (product) => {
+        if (selectedProduct.id === product.id)
+            return;
+
+        if (Object.keys(selectedProduct).length > 0) {
+            const index = products.findIndex((prod) => prod.id === selectedProduct.id);
+            setProducts(products.immutableInsertAt(index,selectedProduct));
+        }
+
+        setSelectedProduct(product);
+    }
+
+    const handleModification = (event) => {
+        const index = products.findIndex((prod) => prod.id === selectedProduct.id);
+        const p = {...products[index],[event.target.name]:event.target.value};
+        setProducts(products.immutableInsertAt(index, p));
+    }
+
+    const handleCancel = () => {
+        const index = products.findIndex((prod) => prod.id === selectedProduct.id);
+        setProducts(products.immutableInsertAt(index,selectedProduct));
+        setSelectedProduct({});
+    }
+
+    const handleSave = async () => {
+        const index = products.findIndex((prod) => prod.id === selectedProduct.id);
+        try {
+            await Endpoints.product.put(products[index]);
+        }
+        catch (error) {
+            console.error(error);
+        }
+        setSelectedProduct({});
+    }
+
+    const handleFormSubmit = (event) => {
+        event.preventDefault();
+        postForm.current.reset();
+    }
+
+    const handleAddProduct = async () => {
+        const {name,price} = formData;
+
+        if(name.length < 3 && price <= 0)
+            return;
+
+        try {
+           const {data} = await Endpoints.product.post(formData);
+           setProducts([...products,data]);
+        }
+        catch (error) {
+            console.log(error);
+        }
+    }
+   //...login, redirect, return
+}
+
+export default Dashboard;
+```
+
+
