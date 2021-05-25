@@ -1,0 +1,54 @@
+POSTGRES
+Start/stop
+
+
+pg_ctl -D /usr/local/var/postgres start
+pg_ctl -D /usr/local/var/postgres stop
+
+createdb sqlinjection
+dropdb mydatabasename
+
+psql mydatabasename
+
+ALTER USER adminjurnalmedical WITH SUPERUSER;
+psql -d jurnalmedical -U sudouser
+
+CREATE DATABASE yourdbname;
+CREATE USER adminfilesdb WITH ENCRYPTED PASSWORD ’123456’;
+GRANT ALL PRIVILEGES ON DATABASE filesdb TO adminfilesdb;
+
+////
+
+
+CREATE USER user_examen WITH ENCRYPTED PASSWORD ’123456’;
+GRANT ALL PRIVILEGES ON DATABASE lactate TO user_examen;
+GRANT ALL PRIVILEGES ON DATABASE carmangerie TO user_examen;
+GRANT ALL PRIVILEGES ON DATABASE menaj TO user_examen;
+
+
+CREATE USER aiPageAdmin WITH ENCRYPTED PASSWORD ‘123456’;
+GRANT ALL PRIVILEGES ON DATABASE ai-page-db TO aiPageAdmin;
+
+
+////
+casedb
+123456
+
+
+git merge upstream/ui/6.0 -m "[CSCvr53462] Merge remote branch"
+
+
+apic === sn === nd 
+
+
+adminFraze
+123456
+
+adminSqlInjection
+123456
+
+filesdb
+adminfilesdb
+123456
+
+
