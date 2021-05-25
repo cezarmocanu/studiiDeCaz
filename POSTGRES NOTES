@@ -34,13 +34,6 @@ GRANT ALL PRIVILEGES ON DATABASE ai-page-db TO aiPageAdmin;
 casedb
 123456
 
-
-git merge upstream/ui/6.0 -m "[CSCvr53462] Merge remote branch"
-
-
-apic === sn === nd 
-
-
 adminFraze
 123456
 
